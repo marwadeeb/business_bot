@@ -12,3 +12,6 @@ venv/
 .ipynb_checkpoints/
 .gradio/
 flagged/
+
+# Demo recordings (upload to YouTube/Drive instead)
+*.mp4

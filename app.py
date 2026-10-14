@@ -258,6 +258,8 @@ def handle_tool_call(tool_call):
     if fn is None:
         return {"status": "error", "error": f"unknown tool {name}"}
     allowed = next(s for s in TOOL_SPECS if s["name"] == name)["inputSchema"]["properties"]
+    if name == "record_feedback" and "question" not in args:  # models sometimes rename the field
+        args = {"question": next((v for v in args.values() if isinstance(v, str)), "")}
     args = {k: v for k, v in args.items() if k in allowed}
     print(f"[TOOL CALL] {name}({json.dumps(args, ensure_ascii=False)})")
     try:
@@ -351,7 +353,7 @@ ROUTE_HANDLERS = {
                     "about their needs (check the conversation, they may already have shared some). "
                     "As soon as you have a valid email, call record_customer_interest, then confirm "
                     "the team will reply within one business day.",
-        "tools": ["record_customer_interest"],
+        "tools": ["record_customer_interest", "record_feedback"],
     },
     "feedback_or_unanswered": {
         "guidance": "Thank the visitor. Call record_feedback with their feedback or unanswered "
@@ -461,7 +463,8 @@ def reflect(message, history, draft, tool_log, route):
 
     # Self-correction: log feedback / unanswered questions the agent forgot to log.
     missed = review.get("missed_feedback")
-    if missed and not any(t["tool"] == "record_feedback" for t in tool_log):
+    logged = any(t["tool"] == "record_feedback" and t["result"].get("status") == "recorded" for t in tool_log)
+    if missed and not logged:
         result = record_feedback(missed)
         tool_log.append({"tool": "record_feedback", "arguments": json.dumps({"question": missed}) + " (added by reflection)", "result": result})
 
