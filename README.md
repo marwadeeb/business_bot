@@ -1,9 +1,11 @@
 ---
-title: Waypoint Studio Vela
-emoji: 🧭
-colorFrom: indigo
-colorTo: yellow
+title: Waypoint Studio
+emoji: 🌖
+colorFrom: gray
+colorTo: purple
 sdk: gradio
+sdk_version: 6.30.0
+python_version: "3.12"
 app_file: app.py
 pinned: false
 short_description: Agent-powered assistant for a secure AI studio
@@ -19,7 +21,7 @@ message to the right handling path, collects leads, logs feedback and unanswered
 reviews its own replies before sending them, and runs as a Gradio chatbot.
 
 🎥 **Demo video:** _add link here_  
-🤗 **Live demo (Hugging Face Space):** _add link here_
+🤗 **Live demo (Hugging Face Space):** https://huggingface.co/spaces/marwadeeb/Waypoint_Studio
 
 ## Features
 

@@ -102,7 +102,7 @@ that information (never guess "yes" or "no" about services that are not mentione
 immediately call `record_feedback` with the visitor's question (do not ask permission first, \
 and never say you passed it on without calling the tool), and offer an email follow-up.
 3. Feedback: when the visitor gives feedback, a complaint, a compliment or a suggestion, \
-thank them and call `record_feedback` with a one-sentence summary of it.
+thank them and call `record_feedback` once with a one-sentence summary of it (never log the same item again on later turns).
 4. Leads: when the visitor shows interest in working with us (a quote, a booking, a \
 project, a Discovery Call), ask for their name, email and a short note about their needs. \
 Call `record_customer_interest` only after the visitor has given an email address. Never \
@@ -513,6 +513,19 @@ def build_ui():
                 gr.Markdown("### Agent trace")
                 trace.render()
     return demo
+
+
+# %% zerogpu
+# Hugging Face ZeroGPU Spaces refuse to start without one @spaces.GPU function.
+# The agent only calls a remote LLM API, so this placeholder is never used.
+try:
+    import spaces
+
+    @spaces.GPU
+    def _zerogpu_placeholder():
+        return None
+except ImportError:  # not on a ZeroGPU Space
+    pass
 
 
 if __name__ == "__main__":
