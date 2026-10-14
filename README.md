@@ -20,7 +20,7 @@ short_description: Agent-powered assistant for a secure AI studio
 message to the right handling path, collects leads, logs feedback and unanswered questions through tool calls,
 reviews its own replies before sending them, and runs as a Gradio chatbot.
 
-🎥 **Demo video:** _add link here_  
+🎥 **Demo video:** https://drive.google.com/file/d/1DJfhTgHfw9ZhieHb_87TKqpuvBp_RiL6/view?usp=sharing  
 🤗 **Live demo (Hugging Face Space):** https://huggingface.co/spaces/marwadeeb/Waypoint_Studio
 
 ## Features
