@@ -8,6 +8,7 @@ the `# %%` sections below, makes up the cells of business_agent.ipynb.
 import json
 import os
 import re
+import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,7 +16,7 @@ from pathlib import Path
 import gradio as gr
 import requests
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from pypdf import PdfReader
 
 # %% config
@@ -51,8 +52,32 @@ MAX_HISTORY_MESSAGES = 20  # short-term memory window
 if not LLM_API_KEY:
     raise RuntimeError("No API key found. Set LLM_API_KEY in .env (or as a Colab / HF Space secret).")
 
-# max_retries makes the SDK back off and retry on free-tier rate limits (HTTP 429).
-client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=5)
+# max_retries makes the SDK retry temporary server errors (e.g. 503 "high demand").
+client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, max_retries=3)
+
+# Free tiers limit requests per minute per model (Gemini flash-lite: 15/min), so space
+# calls to the same model and wait out any 429. Set to 0 for local / paid models.
+MIN_SECONDS_BETWEEN_CALLS = float(get_secret("MIN_SECONDS_BETWEEN_CALLS", "4.5"))
+_last_call = {}
+
+
+def llm(**kwargs):
+    """client.chat.completions.create with free-tier pacing and rate-limit waits."""
+    model = kwargs["model"]
+    for attempt in range(4):
+        wait = _last_call.get(model, 0) + MIN_SECONDS_BETWEEN_CALLS - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _last_call[model] = time.monotonic()
+        try:
+            return client.chat.completions.create(**kwargs)
+        except RateLimitError as exc:
+            if attempt == 3:
+                raise
+            hint = re.search(r"retry in ([\d.]+)s", str(exc))
+            delay = float(hint.group(1)) + 1 if hint else 20
+            print(f"[RATE LIMIT] {model}: free-tier limit hit, waiting {delay:.0f}s")
+            time.sleep(delay)
 
 try:
     BASE_DIR = Path(__file__).resolve().parent
@@ -295,7 +320,7 @@ def route_message(message, history):
     if ROUTER_MODE == "llm":
         last_assistant = next((m["content"] for m in reversed(history) if m["role"] == "assistant"), "")
         try:
-            resp = client.chat.completions.create(
+            resp = llm(
                 model=ROUTER_MODEL,
                 temperature=0,
                 messages=[
@@ -380,7 +405,7 @@ def run_agent(message, history, route):
     tool_log = []
 
     for _ in range(MAX_TOOL_ROUNDS):
-        response = client.chat.completions.create(model=MODEL, messages=messages, tools=tools)
+        response = llm(model=MODEL, messages=messages, tools=tools)
         reply = response.choices[0].message
         if not reply.tool_calls:
             return reply.content or "", tool_log
@@ -393,7 +418,7 @@ def run_agent(message, history, route):
             messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": json.dumps(result)})
 
     # Safety net: too many tool rounds, ask for a final answer without tools.
-    response = client.chat.completions.create(model=MODEL, messages=messages)
+    response = llm(model=MODEL, messages=messages)
     return response.choices[0].message.content or "", tool_log
 
 # %% reflection
@@ -424,7 +449,7 @@ def reflect(message, history, draft, tool_log, route):
         f"# DRAFT\n{draft}"
     )
     try:
-        resp = client.chat.completions.create(
+        resp = llm(
             model=MODEL,
             temperature=0,
             messages=[{"role": "system", "content": REFLECTION_PROMPT}, {"role": "user", "content": review_input}],
