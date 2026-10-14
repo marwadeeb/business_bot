@@ -1,0 +1,14 @@
+# Secrets
+.env
+
+# Runtime logs (leads contain personal data)
+logs/
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+.gradio/
+flagged/
